@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+manticore/parser.out
+manticore/parsetab.py
+mcore_*
 
 # C extensions
 *.so
