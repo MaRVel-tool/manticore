@@ -64,6 +64,7 @@ class EVMContract(EVMAccount):
         self._default_caller = default_caller
         self._hashes = None
 
+
     def add_function(self, signature):
         func_id = ABI.function_selector(signature)
         func_name = str(signature.split('(')[0])
@@ -100,8 +101,8 @@ class EVMContract(EVMAccount):
 
                 #call function `add` on contract_account with argument `1000`
                 contract_account.add(1000)
-
         """
+
         if not name.startswith('_'):
             self.__init_hashes()
             if self._hashes is not None and name in self._hashes.keys():
@@ -130,6 +131,11 @@ class EVMContract(EVMAccount):
                     if caller is None:
                         caller = self._default_caller
 
+                    # print("caller ", caller)
+                    # print("address ", self._address)
+                    # print("value ", value)
+                    # print("data ", tx_data)
+                    # print("gas ", gas)
                     self._manticore.transaction(caller=caller,
                                                 address=self._address,
                                                 value=value,

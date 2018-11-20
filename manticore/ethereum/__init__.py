@@ -727,6 +727,7 @@ class ManticoreEVM(Manticore):
 
         if not self.count_running_states() or len(self.get_code(contract_account)) == 0:
             return None
+
         return contract_account
 
     def get_nonce(self, address):

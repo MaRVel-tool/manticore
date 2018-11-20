@@ -1,0 +1,20 @@
+code trace and change:
+
+
+[init]
+manticore/etherium/__init__.py:
+    class ManticoreEVM:
+        create_account
+        solidity_create_contract
+        create_contract
+            manticore/etherium/account.py:
+                class EVMContract:
+                    _hashes #function name : (function signature, funcID)
+                            #funcID is from ABI
+                    __getattribute__    # let user call functions by "contract.funcName"
+
+
+[contract.funcName]
+    str(entries[0].signature) # denotes the function name and input types
+    tx_data # the input number
+

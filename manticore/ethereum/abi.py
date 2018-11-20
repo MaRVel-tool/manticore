@@ -57,6 +57,7 @@ class ABI(object):
         """
         Build transaction data from function signature and arguments
         """
+
         m = re.match(r"(?P<name>[a-zA-Z_][a-zA-Z_0-9]*)(?P<type>\(.*\))", type_spec)
         if not m:
             raise EthereumError("Function signature expected")
