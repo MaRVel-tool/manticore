@@ -28,13 +28,6 @@ contract Bank {
 }
 """
 
-def create_new_var(var_type):
-    if not symbolic_vars.get(var_type):
-        symbolic_vars[var_type] = 0
-    symbolic_vars[var_type] += 1
-    var = m.make_symbolic_value(name = var_type+str(symbolic_vars[var_type]))
-
-
 m = ManticoreEVM()
 # user_account = m.create_account(balance=1000)
 # user_sol_account = m.solidity_create_contract(contract_src, owner=user_account)
@@ -43,8 +36,17 @@ malicious_account = m.create_account(balance=1000)
 contract_sol_account = m.solidity_create_contract(contract_src, owner=contract_account)
 contract_sol_account._EVMContract__init_hashes()
 
+def create_new_var(var_type):
+    if not symbolic_vars.get(var_type):
+        symbolic_vars[var_type] = 0
+    symbolic_vars[var_type] += 1
+    var = m.make_symbolic_value(name = var_type+str(symbolic_vars[var_type]))
+    return var
+
+
 root = GameTree(m,contract_sol_account)
 
+# trigger the remote function call by malicious account
 for fun_name, entries in root.get_functions().items():
     if len(entries) > 1:
         sig = entries[0].signature[len(name):]
@@ -60,6 +62,7 @@ for fun_name, entries in root.get_functions().items():
         argv.append(var)
 
     tx_data = ABI.function_call(str(entries[0].signature), *argv)
+
     m.transaction(caller=malicious_account,
                 address=root.contract.address,
                 value=0,
