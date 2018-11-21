@@ -2,7 +2,7 @@ import ply.lex as lex
 import ply.yacc as yacc
 
 
-s = "((-('p71')) || (true U ('p96')))"
+# s = "((-('p71')) || (true U ('p96')))"
 # s="('r' U ('p1' U X ('p2' U ('p3')))) && ((('p1' U (('p2' U 'p4') U ('q' && 'r')))) U 'r')"
 # s="(-(true U -((-'p1') || (X (true U 'p2'))))) && (-(true U -((-'p2') || (X (true U 'p1')))))"
 

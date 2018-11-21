@@ -1,9 +1,9 @@
 from manticore.ethereum import ManticoreEVM
 from GameTree import GameTree
 from manticore.exceptions import EthereumError
-
-
 from manticore.ethereum.abi import ABI
+from LtlParser import LtlParser
+from z3 import *
 
 contract_src="""
 pragma solidity ^0.5.0;
@@ -25,8 +25,6 @@ contract Bank {
 }
 """
 
-m = ManticoreEVM()
-
 # object decides how to traverse the game tree
 class BMC(object):
     def __init__(self, manticore=None):
@@ -35,12 +33,13 @@ class BMC(object):
         self.m = manticore
         self.contract_account = self.m.create_account(balance=1000)
         self.malicious_account = self.m.create_account(balance=1000)
-        self.contract_sol_account = self.m.solidity_create_contract(contract_src, owner=contract_account)
+        self.contract_sol_account = self.m.solidity_create_contract(contract_src, owner=self.contract_account)
         self.contract_sol_account._EVMContract__init_hashes()
-        self.root = GameTree(self.m,contract_sol_account)
+        self.root = GameTree(self.m,self.contract_sol_account)
         self.symbolic_vars = {}
-        self.gen_z3_var.z3_var_counter = 0
+        self.z3_var_counter = 0
         self.z3_func = {}
+        self.lp = LtlParser()
 
     def create_new_var(self, var_type):
         if not symbolic_vars.get(var_type):
@@ -73,10 +72,16 @@ class BMC(object):
                         data=tx_data,
                         gas=0xffffffffffff)
 
-    def create_z3_property(p_node, z3_vars):
+    def parse_property(self, property):
+        self.prop = property
+        self.z3_prop = self.lp.parser.parse(property)
+
+    def create_z3_property(self, p_node, z3_vars):
         # p_node: parsing node
-        # z3_vars: variables inheritate from the parent node
+        # z3_vars: variables inheritate from the parent node, a list
         if p_node.type == "LEAF":
+            if z3_vars == []:
+                z3_vars = [0]
             if p_node.str == "true":
                 return True
             elif p_node.str == "false":
@@ -87,21 +92,21 @@ class BMC(object):
                     self.z3_func[func_name] = Function(func_name, IntSort(), BoolSort())
                 return self.z3_func[p_node.str.replace("\'","")](z3_vars[0])
         elif p_node.type == "NOT":
-            return Not(create_z3_property(p_node.child, z3_vars))
+            return Not(self.create_z3_property(p_node.child, z3_vars))
         elif p_node.type == "AND":
-            return And(create_z3_property(p_node.left, z3_vars), create_z3_property(p_node.right, z3_vars))
+            return And(self.create_z3_property(p_node.left, z3_vars), self.create_z3_property(p_node.right, z3_vars))
         elif p_node.type == "OR":
-            return Or(create_z3_property(p_node.left, z3_vars), create_z3_property(p_node.right, z3_vars))
+            return Or(self.create_z3_property(p_node.left, z3_vars), self.create_z3_property(p_node.right, z3_vars))
         elif p_node.type == "NEXT":
             # z3_vars[0] = z3_vars[0] + 1
             old_var = z3_vars[0]
-            z3_vars[0] = gen_z3_var()
-            return Exists(z3_vars[0], And(z3_vars[0] == old_var + 1, create_z3_property(p_node.child, z3_vars)))
+            z3_vars[0] = self.gen_z3_var()
+            return Exists(z3_vars[0], And(z3_vars[0] == old_var + 1, self.create_z3_property(p_node.child, z3_vars)))
         elif p_node.type == "UNTIL":
             if z3_vars == []:
-                z3_vars = [0,gen_z3_var(),gen_z3_var()]
+                z3_vars = [0,self.gen_z3_var(),self.gen_z3_var()]
             if len(z3_vars) == 1:
-                z3_vars = [z3_vars[0],gen_z3_var(),gen_z3_var()]
+                z3_vars = [z3_vars[0],self.gen_z3_var(),self.gen_z3_var()]
             print (p_node, z3_vars)
             left_vars = [z3_vars[2]]
             right_vars = [z3_vars[1]]
@@ -109,7 +114,7 @@ class BMC(object):
                        And(
                            And(
                                z3_vars[1]>=z3_vars[0],
-                               create_z3_property(p_node.right, right_vars)
+                               self.create_z3_property(p_node.right, right_vars)
                            ),
                            ForAll(
                                z3_vars[2],
@@ -118,13 +123,19 @@ class BMC(object):
                                        z3_vars[0] <= z3_vars[2],
                                        z3_vars[2] < z3_vars[1],
                                    ),
-                                   create_z3_property(p_node.left, left_vars)
+                                   self.create_z3_property(p_node.left, left_vars)
                                )
                            )
                        )
                    )
 
     def gen_z3_var(self):
-        gen_z3_var.z3_var_counter += 1
-        return Int("var"+str(gen_z3_var.z3_var_counter))
+        self.z3_var_counter += 1
+        return Int("var"+str(self.z3_var_counter))
 
+sampleProperty = "((-('p71')) || (true U ('p96')))"
+# sampleProperty = "('r' U ('p1' U X ('p2' U ('p3')))) && ((('p1' U (('p2' U 'p4') U ('q' && 'r')))) U 'r')"
+m = ManticoreEVM()
+bmc = BMC(m)
+bmc.parse_property(sampleProperty)
+bmc.create_z3_property(bmc.z3_prop, [])
