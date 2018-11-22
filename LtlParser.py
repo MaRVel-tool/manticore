@@ -26,6 +26,7 @@ class Parser(object):
         # print self.debugfile, self.tabmodule
 
         # Build the lexer and parser
+        print("init LTL PARSER")
         self.lexer = lex.lex(module=self, debug=self.debug)
         self.parser = yacc.yacc(module=self,
                   debug=self.debug,

@@ -143,7 +143,7 @@ def t_FUNCTION(t):
 def t_error(t):
     raise Exception("Illegal character '%s'" % t.value[0])
 
-
+print("Init abitype parser")
 # Build the lexer
 lexer = lex.lex()
 
@@ -225,7 +225,11 @@ with warnings.catch_warnings():
     # yacc.yacc() doesn't close the debuglog file after generating the parser table.
     warnings.simplefilter('ignore', category='ResourceWarning')
     parser = yacc.yacc()
-parse = parser.parse
+
+def parse(ty):
+    print(ty)
+    return parser.parse(ty,lexer=lexer)
+# parse = parser.parse
 
 
 if __name__ == '__main__':

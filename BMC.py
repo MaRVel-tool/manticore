@@ -27,20 +27,21 @@ contract Bank {
 
 # object decides how to traverse the game tree
 class BMC(object):
-    def __init__(self, manticore=None):
+    def __init__(self):
+        self.symbolic_vars = {}
+        self.z3_var_counter = 0
+        self.z3_func = {}
+        self.lp = LtlParser()
+
+    def init_manticore(self, manticore=None):
         # user_account = m.create_account(balance=1000)
         # user_sol_account = m.solidity_create_contract(contract_src, owner=user_account)
         self.m = manticore
         self.contract_account = self.m.create_account(balance=1000)
         self.malicious_account = self.m.create_account(balance=1000)
         self.contract_sol_account = self.m.solidity_create_contract(contract_src, owner=self.contract_account)
-
         self.contract_sol_account._EVMContract__init_hashes()
         self.root = GameTree(self.m,self.contract_sol_account)
-        self.symbolic_vars = {}
-        self.z3_var_counter = 0
-        self.z3_func = {}
-        self.lp = LtlParser()
 
     def create_new_var(self, var_type):
         if not self.symbolic_vars.get(var_type):
@@ -51,21 +52,23 @@ class BMC(object):
 
     # traverse the tree
     def DFS(self):
-        for fun_name, entries in self.root.get_functions().items():
-            if len(entries) > 1:
-                sig = entries[0].signature[len(name):]
-                raise EthereumError(
-                    f'Function: `{name}` has multiple signatures but `signature` is not '
-                    f'defined! Example: `account.{name}(..., signature="{sig}")`\n'
-                    f'Known signatures: {[entry.signature[len(name):] for entry in self._hashes[name]]}')
-            print(fun_name, entries[0].signature)
-            variables_type = entries[0].signature.split("(")[1].replace(")","").split(",")
-            argv = []
-            for var_type in variables_type:
-                var = self.create_new_var(var_type)
-                argv.append(var)
-            print(str(entries[0].signature), argv)
-            self.contract_sol_account.withdraw(2)
+        print("before call")
+        self.contract_sol_account.withdraw(2)
+        # for fun_name, entries in self.root.get_functions().items():
+        #     if len(entries) > 1:
+        #         sig = entries[0].signature[len(name):]
+        #         raise EthereumError(
+        #             f'Function: `{name}` has multiple signatures but `signature` is not '
+        #             f'defined! Example: `account.{name}(..., signature="{sig}")`\n'
+        #             f'Known signatures: {[entry.signature[len(name):] for entry in self._hashes[name]]}')
+        #     print(fun_name, entries[0].signature)
+        #     variables_type = entries[0].signature.split("(")[1].replace(")","").split(",")
+        #     argv = []
+        #     for var_type in variables_type:
+        #         var = self.create_new_var(var_type)
+        #         argv.append(var)
+        #     print(str(entries[0].signature), argv)
+            
             # tx_data = ABI.function_call(str(entries[0].signature), *argv)
             # m.transaction(caller=malicious_account,
             #             address=root.contract.address,
@@ -135,8 +138,10 @@ class BMC(object):
 
 sampleProperty = "((-('p71')) || (true U ('p96')))"
 # sampleProperty = "('r' U ('p1' U X ('p2' U ('p3')))) && ((('p1' U (('p2' U 'p4') U ('q' && 'r')))) U 'r')"
-m = ManticoreEVM()
-bmc = BMC(m)
+
+bmc = BMC()
 bmc.parse_property(sampleProperty)
+m = ManticoreEVM()
+bmc.init_manticore(m)
 bmc.create_z3_property(bmc.z3_prop, [])
 bmc.DFS()
