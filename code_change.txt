@@ -18,3 +18,6 @@ manticore/etherium/__init__.py:
     str(entries[0].signature) # denotes the function name and input types
     tx_data # the input number
 
+[State]
+    initial_state = State(constraints, world)
+    

@@ -34,6 +34,7 @@ class BMC(object):
         self.contract_account = self.m.create_account(balance=1000)
         self.malicious_account = self.m.create_account(balance=1000)
         self.contract_sol_account = self.m.solidity_create_contract(contract_src, owner=self.contract_account)
+
         self.contract_sol_account._EVMContract__init_hashes()
         self.root = GameTree(self.m,self.contract_sol_account)
         self.symbolic_vars = {}
@@ -42,15 +43,15 @@ class BMC(object):
         self.lp = LtlParser()
 
     def create_new_var(self, var_type):
-        if not symbolic_vars.get(var_type):
-            symbolic_vars[var_type] = 0
-        symbolic_vars[var_type] += 1
-        var = m.make_symbolic_value(name = var_type+str(symbolic_vars[var_type]))
+        if not self.symbolic_vars.get(var_type):
+            self.symbolic_vars[var_type] = 0
+        self.symbolic_vars[var_type] += 1
+        var = m.make_symbolic_value(name = var_type+str(self.symbolic_vars[var_type]))
         return var
 
     # traverse the tree
     def DFS(self):
-        for fun_name, entries in root.get_functions().items():
+        for fun_name, entries in self.root.get_functions().items():
             if len(entries) > 1:
                 sig = entries[0].signature[len(name):]
                 raise EthereumError(
@@ -61,16 +62,16 @@ class BMC(object):
             variables_type = entries[0].signature.split("(")[1].replace(")","").split(",")
             argv = []
             for var_type in variables_type:
-                var = create_new_var(var_type)
+                var = self.create_new_var(var_type)
                 argv.append(var)
-
-            tx_data = ABI.function_call(str(entries[0].signature), *argv)
-
-            m.transaction(caller=malicious_account,
-                        address=root.contract.address,
-                        value=0,
-                        data=tx_data,
-                        gas=0xffffffffffff)
+            print(str(entries[0].signature), argv)
+            self.contract_sol_account.withdraw(2)
+            # tx_data = ABI.function_call(str(entries[0].signature), *argv)
+            # m.transaction(caller=malicious_account,
+            #             address=root.contract.address,
+            #             value=0,
+            #             data=tx_data,
+            #             gas=0xffffffffffff)
 
     def parse_property(self, property):
         self.prop = property
@@ -107,7 +108,6 @@ class BMC(object):
                 z3_vars = [0,self.gen_z3_var(),self.gen_z3_var()]
             if len(z3_vars) == 1:
                 z3_vars = [z3_vars[0],self.gen_z3_var(),self.gen_z3_var()]
-            print (p_node, z3_vars)
             left_vars = [z3_vars[2]]
             right_vars = [z3_vars[1]]
             return Exists(z3_vars[1], 
@@ -139,3 +139,4 @@ m = ManticoreEVM()
 bmc = BMC(m)
 bmc.parse_property(sampleProperty)
 bmc.create_z3_property(bmc.z3_prop, [])
+bmc.DFS()
