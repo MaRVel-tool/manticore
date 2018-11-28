@@ -17,7 +17,21 @@ manticore/etherium/__init__.py:
 [contract.funcName]
     str(entries[0].signature) # denotes the function name and input types
     tx_data # the input number
+    class ManticoreEVM:
+        transaction->_transaction->(class Manticore)run->(class Manticore)_start_run
 
+[initial state]
+    class Manticore:
+        make_initial_state
+
+
+<<<<<<< Updated upstream
 [State]
     initial_state = State(constraints, world)
     
+=======
+[todo]
+    state to propositions
+    constraints in states
+    model to variable assign
+>>>>>>> Stashed changes
