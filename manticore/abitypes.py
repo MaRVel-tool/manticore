@@ -143,7 +143,6 @@ def t_FUNCTION(t):
 def t_error(t):
     raise Exception("Illegal character '%s'" % t.value[0])
 
-print("Init abitype parser")
 # Build the lexer
 lexer = lex.lex()
 
@@ -227,7 +226,6 @@ with warnings.catch_warnings():
     parser = yacc.yacc()
 
 def parse(ty):
-    print(ty)
     return parser.parse(ty,lexer=lexer)
 # parse = parser.parse
 

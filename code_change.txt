@@ -25,13 +25,12 @@ manticore/etherium/__init__.py:
         make_initial_state
 
 
-<<<<<<< Updated upstream
 [State]
     initial_state = State(constraints, world)
-    
-=======
+
+
 [todo]
     state to propositions
     constraints in states
     model to variable assign
->>>>>>> Stashed changes
+

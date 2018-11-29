@@ -3,6 +3,7 @@ from GameTree import GameTree
 from manticore.exceptions import EthereumError
 from manticore.ethereum.abi import ABI
 from LtlParser import LtlParser
+from GameTree import GameTree
 from z3 import *
 
 contract_src="""
@@ -39,42 +40,61 @@ class BMC(object):
         self.m = manticore
         self.contract_account = self.m.create_account(balance=1000)
         self.malicious_account = self.m.create_account(balance=1000)
-        self.contract_sol_account = self.m.solidity_create_contract(contract_src, owner=self.contract_account)
-        self.contract_sol_account._EVMContract__init_hashes()
-        self.root = GameTree(self.m,self.contract_sol_account)
+
+        self.contract = self.m.solidity_create_contract(contract_src, owner=self.contract_account)
+        self.m.world.set_balance(self.contract, 1000000000000000000)
+        self.contract._EVMContract__init_hashes()
+        self.root = GameTree(parent=None)
+
+    def get_contract_functions(self):
+        return self.contract._hashes
 
     def create_new_var(self, var_type):
         if not self.symbolic_vars.get(var_type):
             self.symbolic_vars[var_type] = 0
         self.symbolic_vars[var_type] += 1
-        var = m.make_symbolic_value(name = var_type+str(self.symbolic_vars[var_type]))
+        var = self.m.make_symbolic_value(name = var_type+str(self.symbolic_vars[var_type]))
         return var
 
     # traverse the tree
     def DFS(self):
-        print("before call")
-        self.contract_sol_account.withdraw(2)
-        # for fun_name, entries in self.root.get_functions().items():
+        # self.contract.withdraw(self.m.make_symbolic_value())
+        print(m._running_state_ids)
+        argv = []
+        var = self.create_new_var("uint")
+        argv.append(var)
+        tx_data = ABI.function_call("withdraw(uint256)", *argv)
+        m.transaction(caller=self.malicious_account,
+                    address=self.contract.address,
+                    value=0,
+                    data=tx_data,
+                    gas=0xffffffffffff)
+        m.finalize()
+        print(m.workspace)
+        # print(m._running_state_ids)
+        # for state_id in m._running_state_ids:
+        #     print("balance {}".format(m.get_balance(self.malicious_account,state_id)))
+
+        # for fun_name, entries in self.get_contract_functions().items():
         #     if len(entries) > 1:
         #         sig = entries[0].signature[len(name):]
         #         raise EthereumError(
         #             f'Function: `{name}` has multiple signatures but `signature` is not '
         #             f'defined! Example: `account.{name}(..., signature="{sig}")`\n'
         #             f'Known signatures: {[entry.signature[len(name):] for entry in self._hashes[name]]}')
-        #     print(fun_name, entries[0].signature)
         #     variables_type = entries[0].signature.split("(")[1].replace(")","").split(",")
         #     argv = []
         #     for var_type in variables_type:
         #         var = self.create_new_var(var_type)
         #         argv.append(var)
-        #     print(str(entries[0].signature), argv)
-            
-            # tx_data = ABI.function_call(str(entries[0].signature), *argv)
-            # m.transaction(caller=malicious_account,
-            #             address=root.contract.address,
-            #             value=0,
-            #             data=tx_data,
-            #             gas=0xffffffffffff)
+
+        #     tx_data = ABI.function_call(str(entries[0].signature), *argv)
+        #     print("before transaction", str(entries[0].signature))
+        #     m.transaction(caller=self.malicious_account,
+        #                 address=self.contract.address,
+        #                 value=0,
+        #                 data=tx_data,
+        #                 gas=0xffffffffffff)
 
     def parse_property(self, property):
         self.prop = property
@@ -142,6 +162,8 @@ sampleProperty = "((-('p71')) || (true U ('p96')))"
 bmc = BMC()
 bmc.parse_property(sampleProperty)
 m = ManticoreEVM()
+print(m._initial_state)
 bmc.init_manticore(m)
 bmc.create_z3_property(bmc.z3_prop, [])
+
 bmc.DFS()
