@@ -1,5 +1,5 @@
 from manticore.ethereum import ManticoreEVM
-from GameTree import GameTree
+from manticore.GameTree import GameTree
 from manticore.exceptions import EthereumError
 
 from manticore.ethereum.abi import ABI
@@ -43,8 +43,9 @@ def create_new_var(var_type):
     var = m.make_symbolic_value(name = var_type+str(symbolic_vars[var_type]))
     return var
 
+state = m.initial_state
 
-root = GameTree(m,contract_sol_account)
+root = GameTree(contract_sol_account,state, -1)
 
 # trigger the remote function call by malicious account
 for fun_name, entries in root.get_functions().items():
@@ -70,8 +71,10 @@ for fun_name, entries in root.get_functions().items():
                 gas=0xffffffffffff)
 
 
+print("=====================================================================================================================")
 
-
+root.make_tree()
+root.print_game_tree();
 
 # for state_id in m._running_state_ids:
 #     print("balance {}".format(m.get_balance(contract_account,state_id)))
