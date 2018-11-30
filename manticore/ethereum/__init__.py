@@ -5,7 +5,7 @@ import re
 import os
 import pyevmasm as EVMAsm
 
-from .. import Manticore
+from ..manticore import Manticore
 from ..exceptions import EthereumError, DependencyError, NoAliveStates
 from ..core.smtlib import ConstraintSet, Operators, solver, BitVec, Array, ArrayProxy
 from ..platforms import evm
@@ -485,6 +485,7 @@ class ManticoreEVM(Manticore):
         # make the ethereum world state
         world = evm.EVMWorld(constraints, initial_timestamp=1524785992)
         initial_state = State(constraints, world)
+
         super().__init__(initial_state, workspace_url=workspace_url, policy=policy)
 
         self.constraints = ConstraintSet()
@@ -1112,7 +1113,6 @@ class ManticoreEVM(Manticore):
         if state_id != -1:
             # save the state to secondary storage
             state_id = self._executor._workspace.save_state(state, state_id=state_id)
-
             with self.locked_context('ethereum') as context:
                 if final:
                     # Keep it on a private list

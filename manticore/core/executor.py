@@ -4,6 +4,7 @@ import random
 import logging
 import signal
 
+from ..GameTree import Node, Get_node_by_id
 from ..exceptions import ExecutorError, SolverException
 from ..utils.nointerrupt import WithKeyboardInterruptAs
 from ..utils.event import Eventful
@@ -357,7 +358,7 @@ class Executor(Eventful):
         # to output whatever helps to understand this testcase
         self._publish('will_generate_testcase', state, 'test', message)
 
-    def fork(self, state, expression, policy='ALL', setstate=None):
+    def fork(self, current_node, state, expression, policy='ALL', setstate=None):
         '''
         Fork state on expression concretizations.
         Using policy build a list of solutions for expression.
@@ -399,6 +400,7 @@ class Executor(Eventful):
 
         # Build and enqueue a state for each solution
         children = []
+
         for new_value in solutions:
             with state as new_state:
                 new_state.constrain(expression == new_value)
@@ -412,6 +414,12 @@ class Executor(Eventful):
                 # enqueue new_state
                 state_id = self.enqueue(new_state)
                 # maintain a list of children for logging purpose
+                '''
+                  Add the child to the tree here (node is paased from the previous function)
+                  add function takes state and state id and also add it to the hashMap'''
+                child_node = Node(new_state,state_id, new_state.platform.current_vm.gas)
+
+                current_node.add_child_node(child_node)
                 children.append(state_id)
 
         logger.info("Forking current state into states %r", children)
@@ -440,6 +448,7 @@ class Executor(Eventful):
                             with self._lock:
                                 # notify siblings we are about to stop this run
                                 self._notify_stop_run()
+
                                 try:
                                     # Select a single state_id
                                     current_state_id = self.get()
@@ -450,6 +459,13 @@ class Executor(Eventful):
                                         self.forward_events_from(current_state, True)
                                         self._publish('did_load_state', current_state, current_state_id)
                                         logger.info("load state %r", current_state_id)
+                                        current_node = Get_node_by_id(current_state_id)
+                                        if current_node is not None:
+                                            current_node.state = current_state
+
+                                        else:
+                                            current_node = Node(current_state,current_state_id,current_state.platform.current_vm.gas)
+
                                     # notify siblings we have a state to play with
                                 finally:
                                     self._notify_start_run()
@@ -465,7 +481,10 @@ class Executor(Eventful):
                         # Allows to terminate manticore worker on user request
                         while not self.is_shutdown():
                             if not current_state.execute():
+                                #print(current_state.platform)
+                                current_node.final_gas = current_state.platform.current_vm.gas
                                 break
+    
                         else:
                             # Notify this worker is done
                             self._publish('will_terminate_state', current_state, current_state_id, 'Shutdown')
@@ -476,8 +495,14 @@ class Executor(Eventful):
                         # expression
                         # policy
                         # setstate()
+
+                        ## Get the node by id from hashmap of game tree , pass it to the fork function
+                        if current_node is None:
+                            current_node = Node(current_state,current_state_id,current_state.platform.current_vm.gas)
+
+
                         logger.debug("Generic state fork on condition")
-                        current_state = self.fork(current_state, e.expression, e.policy, e.setstate)
+                        current_state = self.fork(current_node, current_state, e.expression, e.policy, e.setstate)
 
                     except TerminateState as e:
                         # Notify this worker is done

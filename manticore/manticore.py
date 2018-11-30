@@ -41,6 +41,7 @@ STDIN_INPUT_DEFAULT_SIZE = 256
 def make_decree(program, concrete_start='', **kwargs):
     constraints = ConstraintSet()
     platform = decree.SDecree(constraints, program)
+
     initial_state = State(constraints, platform)
     logger.info('Loading program %s', program)
 
@@ -405,6 +406,7 @@ class Manticore(Eventful):
         else:
             target = self._executor.run
 
+        num_processes = 1
         if num_processes == 1:
             target()
         else:
