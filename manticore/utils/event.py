@@ -125,8 +125,6 @@ class Eventful(object, metaclass=EventsGatherMetaclass):
     # shouldn't check the event.
     def _publish_impl(self, _name, *args, **kwargs):
         bucket = self._get_signal_bucket(_name)
-        if _name == "will_start_run":
-            print(bucket)
         for robj, methods in bucket.items():
             for callback in methods:
                 callback(robj(), *args, **kwargs)

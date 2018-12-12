@@ -3,7 +3,7 @@ from GameTree import GameTree
 from manticore.exceptions import EthereumError
 from manticore.ethereum.abi import ABI
 from LtlParser import LtlParser
-from GameTree import GameTree
+from manticore.GameTree import GameTree
 from z3 import *
 
 contract_src="""
@@ -40,11 +40,10 @@ class BMC(object):
         self.m = manticore
         self.contract_account = self.m.create_account(balance=1000)
         self.malicious_account = self.m.create_account(balance=1000)
-
         self.contract = self.m.solidity_create_contract(contract_src, owner=self.contract_account)
         self.m.world.set_balance(self.contract, 1000000000000000000)
         self.contract._EVMContract__init_hashes()
-        self.root = GameTree(parent=None)
+        # self.root = GameTree(parent=None)
 
     def get_contract_functions(self):
         return self.contract._hashes
@@ -59,18 +58,32 @@ class BMC(object):
     # traverse the tree
     def DFS(self):
         # self.contract.withdraw(self.m.make_symbolic_value())
-        print(m._running_state_ids)
+        #print(m._running_state_ids)
+
+        root = GameTree(self.contract, self.m.initial_state, -1)
+
         argv = []
         var = self.create_new_var("uint")
         argv.append(var)
         tx_data = ABI.function_call("withdraw(uint256)", *argv)
-        m.transaction(caller=self.malicious_account,
+
+        self.m.transaction(caller=self.malicious_account,
                     address=self.contract.address,
                     value=0,
                     data=tx_data,
                     gas=0xffffffffffff)
-        m.finalize()
-        print(m.workspace)
+        print("after transaction")
+        self.m.finalize()
+        print(self.m.workspace)
+
+        root.make_tree()
+        root.print_game_tree();
+
+        i=0
+        while i < 5:
+            print(self.m.get_balance(self.contract,i))
+            i += 1
+
         # print(m._running_state_ids)
         # for state_id in m._running_state_ids:
         #     print("balance {}".format(m.get_balance(self.malicious_account,state_id)))
@@ -167,3 +180,6 @@ bmc.init_manticore(m)
 bmc.create_z3_property(bmc.z3_prop, [])
 
 bmc.DFS()
+
+
+

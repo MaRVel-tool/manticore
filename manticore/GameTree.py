@@ -36,21 +36,21 @@ class GameTree(object):
 
 
 class Node(object):
-	def __init__(self, state, state_id, gas=0):
-		self.state = state
-		self.state_id = state_id
-		self.children = []
-		self.final_gas = gas
-		add_node_to_list(state_id, self)
+    def __init__(self, state, state_id, gas=0):
+        self.state = state
+        self.state_id = state_id
+        self.children = []
+        self.final_gas = gas
+        add_node_to_list(state_id, self)
 
-	def add_child_node(self, child_node):
-		self.children.append(child_node)
+    def add_child_node(self, child_node):
+        self.children.append(child_node)
 
 nodes_list={}
 visited = {}
 
 def add_node_to_list(state_id,node):
     nodes_list[state_id] = node
- 
+
 def Get_node_by_id(state_id):
-	return nodes_list.get(state_id)
+    return nodes_list.get(state_id)
