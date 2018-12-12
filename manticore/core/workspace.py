@@ -141,8 +141,8 @@ class Store(object):
         """
         with self.load_stream(key, binary=True) as f:
             state = self._serializer.deserialize(f)
-            if delete:
-                self.rm(key)
+            #if delete:
+            #    self.rm(key)
             return state
 
     def rm(self, key):
