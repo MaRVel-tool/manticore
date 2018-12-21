@@ -18,7 +18,7 @@ class GameTree(object):
 
                 self.visit_child_nodes(node, visited_nodes)
 
-    def visit_child_nodes(self, node,visited_nodes):
+    def visit_child_nodes(self, node, visited_nodes):
         for child in node.children:
             visited_nodes.append(child.state_id)
             self.visit_child_nodes(child,visited_nodes)
@@ -54,3 +54,9 @@ def add_node_to_list(state_id,node):
  
 def Get_node_by_id(state_id):
 	return nodes_list.get(state_id)
+
+def Get_id_by_state(state):
+    for state_id, node in nodes_list.items():
+        if(node.state == state):
+            return node.state_id
+    return None

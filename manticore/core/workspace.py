@@ -13,6 +13,7 @@ from manticore.utils import config
 from manticore.utils.helpers import PickleSerializer
 from .smtlib import solver
 from .state import State
+from manticore.GameTree import Get_id_by_state
 
 logger = logging.getLogger(__name__)
 
@@ -141,8 +142,8 @@ class Store(object):
         """
         with self.load_stream(key, binary=True) as f:
             state = self._serializer.deserialize(f)
-            #if delete:
-            #    self.rm(key)
+            if delete:
+                self.rm(key)
             return state
 
     def rm(self, key):
@@ -378,6 +379,13 @@ class Workspace(object):
             state_id = self._get_id()
         else:
             self.rm_state(state_id)
+
+        current_state_id = Get_id_by_state(state)
+        if(current_state_id) :
+            print("saving current_state_id:", current_state_id)
+            self._store.save_state(state, f'{self._prefix}{current_state_id:08x}{self._suffix}')
+
+        print("saving state_id:", state_id)
 
         self._store.save_state(state, f'{self._prefix}{state_id:08x}{self._suffix}')
         return state_id
