@@ -382,10 +382,7 @@ class Workspace(object):
 
         current_state_id = Get_id_by_state(state)
         if(current_state_id) :
-            print("saving current_state_id:", current_state_id)
             self._store.save_state(state, f'{self._prefix}{current_state_id:08x}{self._suffix}')
-
-        print("saving state_id:", state_id)
 
         self._store.save_state(state, f'{self._prefix}{state_id:08x}{self._suffix}')
         return state_id
