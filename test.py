@@ -34,6 +34,7 @@ m = ManticoreEVM()
 contract_account = m.create_account(balance=1000)
 malicious_account = m.create_account(balance=1000)
 contract_sol_account = m.solidity_create_contract(contract_src, owner=contract_account)
+m.world.set_balance(contract_sol_account, 100000000)
 contract_sol_account._EVMContract__init_hashes()
 
 def create_new_var(var_type):
@@ -70,13 +71,37 @@ for fun_name, entries in root.get_functions().items():
                 data=tx_data,
                 gas=0xffffffffffff)
 
+    print(m._running_state_ids)
+    
+
+
+#m.finalize()
+
+
 
 print("=====================================================================================================================")
 
 root.make_tree()
 root.print_game_tree();
 
-# for state_id in m._running_state_ids:
-#     print("balance {}".format(m.get_balance(contract_account,state_id)))
-#     print("pc {}".format(m.load(state_id)._platform.current_vm))
 
+
+def parse_game_tree(node):
+    if not node.children:
+        try:
+            print("Leaf Node : " , node.state_id)
+            new_state = m._executor._workspace.load_state(node.state_id, delete=False)
+            print("account :" , new_state._platform.get_balance(int(contract_account)))
+            print("maliciou account :" , new_state._platform.get_balance(int(malicious_account)))
+            print("contract account :" , new_state._platform.get_balance(int(contract_sol_account)))
+            print("=====================================================================================================================")
+        except IOError:
+            print("=====================================================================================================================")
+        return
+
+    for child in node.children:
+        parse_game_tree(child)
+ 
+
+
+parse_game_tree(root.root_node)
