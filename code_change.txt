@@ -24,6 +24,9 @@ manticore/etherium/__init__.py:
     class Manticore:
         make_initial_state
 
+[call.value]
+    evm.py 1816, 2363
+
 
 [State]
     initial_state = State(constraints, world)
@@ -33,4 +36,5 @@ manticore/etherium/__init__.py:
     state to propositions
     constraints in states
     model to variable assign
+
 

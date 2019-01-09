@@ -101,7 +101,6 @@ def parse_game_tree(node):
 
     for child in node.children:
         parse_game_tree(child)
- 
 
 
 parse_game_tree(root.root_node)

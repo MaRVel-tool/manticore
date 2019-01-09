@@ -3,16 +3,20 @@ from GameTree import GameTree
 from manticore.exceptions import EthereumError
 from manticore.ethereum.abi import ABI
 from LtlParser import LtlParser
-from manticore.GameTree import GameTree
+from manticore.GameTree import GameTree, Node
 from z3 import *
 
-contract_src="""
+contract_src = """
 pragma solidity ^0.5.0;
 contract Bank {
     function withdraw(uint amount) public {
         if(amount < 20){
+            amount = amount + 1;
             msg.sender.call.value(amount)("");
         } else {
+            if(amount < 10){
+                msg.sender.call.value(amount)("");
+            }
             revert();
         }
     }
@@ -27,7 +31,10 @@ contract Bank {
 """
 
 # object decides how to traverse the game tree
+
+
 class BMC(object):
+
     def __init__(self):
         self.symbolic_vars = {}
         self.z3_var_counter = 0
@@ -40,10 +47,12 @@ class BMC(object):
         self.m = manticore
         self.contract_account = self.m.create_account(balance=1000)
         self.malicious_account = self.m.create_account(balance=1000)
-        self.contract = self.m.solidity_create_contract(contract_src, owner=self.contract_account)
+        self.contract = self.m.solidity_create_contract(
+            contract_src, owner=self.contract_account)
         self.m.world.set_balance(self.contract, 1000000000000000000)
         self.contract._EVMContract__init_hashes()
-        # self.root = GameTree(parent=None)
+        self.root = Node(self.m.initial_state, -1)
+        self.root.owner = 1
 
     def get_contract_functions(self):
         return self.contract._hashes
@@ -52,62 +61,56 @@ class BMC(object):
         if not self.symbolic_vars.get(var_type):
             self.symbolic_vars[var_type] = 0
         self.symbolic_vars[var_type] += 1
-        var = self.m.make_symbolic_value(name = var_type+str(self.symbolic_vars[var_type]))
+        var = self.m.make_symbolic_value(
+            name=var_type + str(self.symbolic_vars[var_type]))
         return var
 
     # traverse the tree
-    def DFS(self):
-        # self.contract.withdraw(self.m.make_symbolic_value())
-        #print(m._running_state_ids)
+    def DFS(self, g_node):
 
-        root = GameTree(self.contract, self.m.initial_state, -1)
+        #[todo] terminate
+        if g_node.depth > 10:
+            print("depth limitation")
+            #[todo] check LTL with tail loop
 
-        argv = []
-        var = self.create_new_var("uint")
-        argv.append(var)
-        tx_data = ABI.function_call("withdraw(uint256)", *argv)
+        if g_node.owner == 0:
+            print("owner = 0")
+            #[todo] execute
+        else:
+            print("owner = 1")
+            #[todo] load manticore state from node
 
-        self.m.transaction(caller=self.malicious_account,
-                    address=self.contract.address,
-                    value=0,
-                    data=tx_data,
-                    gas=0xffffffffffff)
-        print("after transaction")
-        self.m.finalize()
-        print(self.m.workspace)
+            for fun_name, entries in self.get_contract_functions().items():
+                with m.locked_context('ethereum') as context:
+                    print(context['_saved_states'], m._all_state_ids)
+                if len(entries) > 1:
+                    sig = entries[0].signature[len(name):]
+                    raise EthereumError(
+                        f'Function: `{name}` has multiple signatures but `signature` is not '
+                        f'defined! Example: `account.{name}(..., signature="{sig}")`\n'
+                        f'Known signatures: {[entry.signature[len(name):] for entry in self._hashes[name]]}')
+                variables_type = entries[0].signature.split(
+                    "(")[1].replace(")", "").split(",")
+                argv = []
+                for var_type in variables_type:
+                    var = self.create_new_var(var_type)
+                    argv.append(var)
 
-        root.make_tree()
-        root.print_game_tree();
+                tx_data = ABI.function_call(str(entries[0].signature), *argv)
+                print("before transaction", str(entries[0].signature))
+                m.transaction(caller=self.malicious_account,
+                              address=self.contract.address,
+                              value=0,
+                              data=tx_data,
+                              gas=0xffffffffffff)
+        m.finalize()
+                #[todo] save manticore state to node
 
-        i=0
-        while i < 5:
-            print(self.m.get_balance(self.contract,i))
-            i += 1
+                #[todo] finalize the node
 
-        # print(m._running_state_ids)
-        # for state_id in m._running_state_ids:
-        #     print("balance {}".format(m.get_balance(self.malicious_account,state_id)))
+                #[todo] check LTL
 
-        # for fun_name, entries in self.get_contract_functions().items():
-        #     if len(entries) > 1:
-        #         sig = entries[0].signature[len(name):]
-        #         raise EthereumError(
-        #             f'Function: `{name}` has multiple signatures but `signature` is not '
-        #             f'defined! Example: `account.{name}(..., signature="{sig}")`\n'
-        #             f'Known signatures: {[entry.signature[len(name):] for entry in self._hashes[name]]}')
-        #     variables_type = entries[0].signature.split("(")[1].replace(")","").split(",")
-        #     argv = []
-        #     for var_type in variables_type:
-        #         var = self.create_new_var(var_type)
-        #         argv.append(var)
-
-        #     tx_data = ABI.function_call(str(entries[0].signature), *argv)
-        #     print("before transaction", str(entries[0].signature))
-        #     m.transaction(caller=self.malicious_account,
-        #                 address=self.contract.address,
-        #                 value=0,
-        #                 data=tx_data,
-        #                 gas=0xffffffffffff)
+            #[todo] DFS new node
 
     def parse_property(self, property):
         self.prop = property
@@ -124,10 +127,11 @@ class BMC(object):
             elif p_node.str == "false":
                 return False
             else:
-                func_name = p_node.str.replace("\'","")
+                func_name = p_node.str.replace("\'", "")
                 if not self.z3_func.get(func_name):
-                    self.z3_func[func_name] = Function(func_name, IntSort(), BoolSort())
-                return self.z3_func[p_node.str.replace("\'","")](z3_vars[0])
+                    self.z3_func[func_name] = Function(
+                        func_name, IntSort(), BoolSort())
+                return self.z3_func[p_node.str.replace("\'", "")](z3_vars[0])
         elif p_node.type == "NOT":
             return Not(self.create_z3_property(p_node.child, z3_vars))
         elif p_node.type == "AND":
@@ -141,33 +145,35 @@ class BMC(object):
             return Exists(z3_vars[0], And(z3_vars[0] == old_var + 1, self.create_z3_property(p_node.child, z3_vars)))
         elif p_node.type == "UNTIL":
             if z3_vars == []:
-                z3_vars = [0,self.gen_z3_var(),self.gen_z3_var()]
+                z3_vars = [0, self.gen_z3_var(), self.gen_z3_var()]
             if len(z3_vars) == 1:
-                z3_vars = [z3_vars[0],self.gen_z3_var(),self.gen_z3_var()]
+                z3_vars = [z3_vars[0], self.gen_z3_var(), self.gen_z3_var()]
             left_vars = [z3_vars[2]]
             right_vars = [z3_vars[1]]
-            return Exists(z3_vars[1], 
-                       And(
-                           And(
-                               z3_vars[1]>=z3_vars[0],
-                               self.create_z3_property(p_node.right, right_vars)
-                           ),
-                           ForAll(
-                               z3_vars[2],
-                               Implies(
-                                   And(
-                                       z3_vars[0] <= z3_vars[2],
-                                       z3_vars[2] < z3_vars[1],
-                                   ),
-                                   self.create_z3_property(p_node.left, left_vars)
-                               )
-                           )
-                       )
-                   )
+            return Exists(z3_vars[1],
+                          And(
+                And(
+                    z3_vars[1] >= z3_vars[0],
+                    self.create_z3_property(
+                        p_node.right, right_vars)
+                ),
+                ForAll(
+                    z3_vars[2],
+                    Implies(
+                        And(
+                            z3_vars[0] <= z3_vars[2],
+                            z3_vars[2] < z3_vars[1],
+                        ),
+                        self.create_z3_property(
+                            p_node.left, left_vars)
+                    )
+                )
+            )
+            )
 
     def gen_z3_var(self):
         self.z3_var_counter += 1
-        return Int("var"+str(self.z3_var_counter))
+        return Int("var" + str(self.z3_var_counter))
 
 sampleProperty = "((-('p71')) || (true U ('p96')))"
 # sampleProperty = "('r' U ('p1' U X ('p2' U ('p3')))) && ((('p1' U (('p2' U 'p4') U ('q' && 'r')))) U 'r')"
@@ -179,7 +185,8 @@ print(m._initial_state)
 bmc.init_manticore(m)
 bmc.create_z3_property(bmc.z3_prop, [])
 
-bmc.DFS()
+bmc.DFS(bmc.root)
 
-
-
+tree = GameTree(m.initial_state, -1)
+tree.make_tree()
+tree.print_game_tree()

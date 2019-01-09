@@ -464,7 +464,9 @@ class Executor(Eventful):
                                             current_node.state = current_state
 
                                         else:
-                                            current_node = Node(current_state,current_state_id,current_state.platform.current_vm.gas)
+                                            current_node = Node(current_state, 
+                                                current_state_id, 
+                                                current_state.platform.current_vm.gas)
 
                                     # notify siblings we have a state to play with
                                 finally:
