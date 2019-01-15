@@ -33,6 +33,8 @@ from .account import EVMAccount, EVMContract
 from .abi import ABI
 from .solidity import SolidityMetadata
 
+import pdb
+
 logger = logging.getLogger(__name__)
 
 init_logging()  # FIXME(mark): emitting a warning in abi.py does not work unless this is called a second time here
@@ -1079,11 +1081,12 @@ class ManticoreEVM(Manticore):
         # Check if there is a pending transaction
         with self.locked_context('ethereum') as context:
             # there are no states added to the executor queue
-            assert len(self._executor.list()) == 0
+            #assert len(self._executor.list()) == 0
             for state_id in context['_saved_states']:
                 self._executor.put(state_id)
             context['_saved_states'] = set()
 
+        # pdb.set_trace()
         # A callback will use _pending_transaction and issue the transaction
         # in each state (see load_state_callback)
         super().run(**kwargs)
@@ -1093,6 +1096,7 @@ class ManticoreEVM(Manticore):
                 self._initial_state = self._executor._workspace.load_state(context['_saved_states'].pop(), delete=True)
                 self._executor.forward_events_from(self._initial_state, True)
                 context['_saved_states'] = set()
+                print("_running_state_ids ",self._running_state_ids)
                 assert self._running_state_ids == (-1,)
 
     def save(self, state, state_id=None, final=False):

@@ -4,7 +4,7 @@ import random
 import logging
 import signal
 
-from ..GameTree import Node, Get_node_by_id
+from ..GameTree import Node, Get_node_by_id, generate_new_id
 from ..exceptions import ExecutorError, SolverException
 from ..utils.nointerrupt import WithKeyboardInterruptAs
 from ..utils.event import Eventful
@@ -417,9 +417,21 @@ class Executor(Eventful):
                 '''
                   Add the child to the tree here (node is paased from the previous function)
                   add function takes state and state id and also add it to the hashMap'''
-                child_node = Node(new_state,state_id, new_state.platform.current_vm.gas)
 
-                current_node.add_child_node(child_node)
+                new_state.set_id(state_id)
+                new_node_id = generate_new_id()
+                new_state._id = new_node_id
+                new_node = Node(new_state, 
+                    new_node_id, 
+                    new_state.platform.current_vm.gas)
+
+                current_node.add_child_node(new_node)
+                new_node.set_parent(current_node)
+                print("after fork", current_node.state_id, new_node.state_id)
+
+                # child_node = Node(new_state,state_id, new_state.platform.current_vm.gas)
+                # current_node.add_child_node(child_node)
+
                 children.append(state_id)
 
         logger.info("Forking current state into states %r", children)
@@ -456,17 +468,27 @@ class Executor(Eventful):
                                     if current_state_id is not None:
                                         self._publish('will_load_state', current_state_id)
                                         current_state = self._workspace.load_state(current_state_id)
+                                        print("real id:", current_state._id, current_state_id)
                                         self.forward_events_from(current_state, True)
                                         self._publish('did_load_state', current_state, current_state_id)
                                         logger.info("load state %r", current_state_id)
-                                        current_node = Get_node_by_id(current_state_id)
+
+                                        current_node = Get_node_by_id(current_state._id)
                                         if current_node is not None:
-                                            current_node.state = current_state
+                                            new_node_id = generate_new_id()
+                                            current_state._id = new_node_id
+                                            new_node = Node(current_state, 
+                                                new_node_id, 
+                                                current_state.platform.current_vm.gas)
+                                            current_node.add_child_node(new_node)
+                                            new_node.set_parent(current_node)
+                                            print("after execute", current_node.state_id,new_node.state_id)
 
                                         else:
                                             current_node = Node(current_state, 
-                                                current_state_id, 
+                                                current_state._id, 
                                                 current_state.platform.current_vm.gas)
+                                            new_node = current_node
 
                                     # notify siblings we have a state to play with
                                 finally:
@@ -484,7 +506,7 @@ class Executor(Eventful):
                         while not self.is_shutdown():
                             if not current_state.execute():
                                 #print(current_state.platform)
-                                current_node.final_gas = current_state.platform.current_vm.gas
+                                new_node.final_gas = current_state.platform.current_vm.gas
                                 break
     
                         else:
@@ -504,7 +526,7 @@ class Executor(Eventful):
 
 
                         logger.debug("Generic state fork on condition")
-                        current_state = self.fork(current_node, current_state, e.expression, e.policy, e.setstate)
+                        current_state = self.fork(new_node, current_state, e.expression, e.policy, e.setstate)
 
                     except TerminateState as e:
                         # Notify this worker is done

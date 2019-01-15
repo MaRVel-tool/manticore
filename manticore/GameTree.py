@@ -41,6 +41,9 @@ class Node(object):
         self.depth = depth
         add_node_to_list(state_id, self)
 
+    def set_parent(self, p_node):
+        self.parent = p_node
+
     def add_child_node(self, child_node):
         self.children.append(child_node)
 
@@ -56,6 +59,15 @@ def add_node_to_list(state_id, node):
 def Get_node_by_id(state_id):
     return nodes_list.get(state_id)
 
+def generate_new_id():
+    i = 0
+    used = True
+    while used:
+        used = False
+        if nodes_list.get(i) != None:
+            i += 1
+            used = True
+    return i
 
 def Get_id_by_state(state):
     for state_id, node in nodes_list.items():

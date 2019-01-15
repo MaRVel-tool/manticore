@@ -363,6 +363,7 @@ class Workspace(object):
         :return: The deserialized state
         :rtype: State
         """
+        print("load state", f'{self._prefix}{state_id:08x}{self._suffix}')
         return self._store.load_state(f'{self._prefix}{state_id:08x}{self._suffix}', delete=delete)
 
     def save_state(self, state, state_id=None):
@@ -380,10 +381,14 @@ class Workspace(object):
         else:
             self.rm_state(state_id)
 
-        current_state_id = Get_id_by_state(state)
-        if(current_state_id) :
-            self._store.save_state(state, f'{self._prefix}{current_state_id:08x}{self._suffix}')
+        if state._id == -2:
+            state._id = state_id
 
+        # current_state_id = Get_id_by_state(state.id)
+        # if current_state_id:
+        #     self._store.save_state(state, f'{self._prefix}{current_state_id:08x}{self._suffix}')
+
+        print("save_state", state._id, state_id, f'{self._prefix}{state_id:08x}{self._suffix}')
         self._store.save_state(state, f'{self._prefix}{state_id:08x}{self._suffix}')
         return state_id
 

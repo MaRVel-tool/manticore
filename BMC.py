@@ -5,6 +5,7 @@ from manticore.ethereum.abi import ABI
 from LtlParser import LtlParser
 from manticore.GameTree import GameTree, Node
 from z3 import *
+import pdb
 
 contract_src = """
 pragma solidity ^0.5.0;
@@ -72,6 +73,7 @@ class BMC(object):
         if g_node.depth > 10:
             print("depth limitation")
             #[todo] check LTL with tail loop
+            return True
 
         if g_node.owner == 0:
             print("owner = 0")
@@ -82,7 +84,7 @@ class BMC(object):
 
             for fun_name, entries in self.get_contract_functions().items():
                 with m.locked_context('ethereum') as context:
-                    print(context['_saved_states'], m._all_state_ids)
+                    print(m._executor.list(), m._all_state_ids, m._running_state_ids)
                 if len(entries) > 1:
                     sig = entries[0].signature[len(name):]
                     raise EthereumError(
@@ -98,11 +100,15 @@ class BMC(object):
 
                 tx_data = ABI.function_call(str(entries[0].signature), *argv)
                 print("before transaction", str(entries[0].signature))
+                # pdb.set_trace()
                 m.transaction(caller=self.malicious_account,
                               address=self.contract.address,
                               value=0,
                               data=tx_data,
                               gas=0xffffffffffff)
+                
+
+
         m.finalize()
                 #[todo] save manticore state to node
 
@@ -181,7 +187,7 @@ sampleProperty = "((-('p71')) || (true U ('p96')))"
 bmc = BMC()
 bmc.parse_property(sampleProperty)
 m = ManticoreEVM()
-print(m._initial_state)
+print("*initial_state", m._initial_state)
 bmc.init_manticore(m)
 bmc.create_z3_property(bmc.z3_prop, [])
 

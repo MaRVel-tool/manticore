@@ -89,6 +89,8 @@ class State(Eventful):
         self._input_symbols = list()
         self._child = None
         self._context = dict()
+
+        self._id = -2
         # 33
         # Events are lost in serialization and fork !!
         self.forward_events_from(platform)
@@ -103,6 +105,7 @@ class State(Eventful):
         state['input_symbols'] = self._input_symbols
         state['child'] = self._child
         state['context'] = self._context
+        state['id'] = self._id
         return state
 
     def __setstate__(self, state):
@@ -112,6 +115,7 @@ class State(Eventful):
         self._input_symbols = state['input_symbols']
         self._child = state['child']
         self._context = state['context']
+        self._id = state['id']
         # 33
         # Events are lost in serialization and fork !!
         self.forward_events_from(self._platform)
@@ -497,3 +501,6 @@ class State(Eventful):
         :param str message: Longer description
         """
         self._publish('will_generate_testcase', name, message)
+
+    def set_id(self, id):
+        self._id = id
