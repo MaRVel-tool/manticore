@@ -2,9 +2,11 @@ from manticore.ethereum import ManticoreEVM
 from GameTree import GameTree
 from manticore.exceptions import EthereumError
 from manticore.ethereum.abi import ABI
+from manticore.core.smtlib.constraints import ConstraintSet
 from LtlParser import LtlParser
 from manticore.GameTree import GameTree, Node
 from z3 import *
+import manticore.core.smtlib.expression
 import pdb
 
 contract_src = """
@@ -66,48 +68,49 @@ class BMC(object):
             name=var_type + str(self.symbolic_vars[var_type]))
         return var
 
-    # traverse the tree
-    def DFS(self, g_node):
+    # Execute from the node
+    def expand(self, g_node):
 
-        #[todo] terminate
+        #[todo] check LTL
+
         if g_node.depth > 10:
             print("depth limitation")
             #[todo] check LTL with tail loop
             return True
 
-        if g_node.owner == 0:
-            print("owner = 0")
-            #[todo] execute
-        else:
-            print("owner = 1")
-            #[todo] load manticore state from node
+        # try all function calls
+        for fun_name, entries in self.get_contract_functions().items():
+            #setup initial state in the vm
+            # m._initial_state = g_node.state
+            # if '_pending_transaction' in m._initial_state.context:
+            #     m._initial_state.context.pop("_pending_transaction")
+            # m._initial_state._constraints = ConstraintSet()
+            # m._initial_state.platform.constraints = m._initial_state.constraints
+            # [todo] maybe reset pc
 
-            for fun_name, entries in self.get_contract_functions().items():
-                with m.locked_context('ethereum') as context:
-                    print(m._executor.list(), m._all_state_ids, m._running_state_ids)
-                if len(entries) > 1:
-                    sig = entries[0].signature[len(name):]
-                    raise EthereumError(
-                        f'Function: `{name}` has multiple signatures but `signature` is not '
-                        f'defined! Example: `account.{name}(..., signature="{sig}")`\n'
-                        f'Known signatures: {[entry.signature[len(name):] for entry in self._hashes[name]]}')
-                variables_type = entries[0].signature.split(
-                    "(")[1].replace(")", "").split(",")
-                argv = []
-                for var_type in variables_type:
-                    var = self.create_new_var(var_type)
-                    argv.append(var)
+            with m.locked_context('ethereum') as context:
+                print(m._executor.list(), m._all_state_ids, m._running_state_ids)
+            if len(entries) > 1:
+                sig = entries[0].signature[len(name):]
+                raise EthereumError(
+                    f'Function: `{name}` has multiple signatures but `signature` is not '
+                    f'defined! Example: `account.{name}(..., signature="{sig}")`\n'
+                    f'Known signatures: {[entry.signature[len(name):] for entry in self._hashes[name]]}')
+            variables_type = entries[0].signature.split(
+                "(")[1].replace(")", "").split(",")
+            argv = []
+            for var_type in variables_type:
+                var = self.create_new_var(var_type)
+                argv.append(var)
 
-                tx_data = ABI.function_call(str(entries[0].signature), *argv)
-                print("before transaction", str(entries[0].signature))
-                # pdb.set_trace()
-                m.transaction(caller=self.malicious_account,
-                              address=self.contract.address,
-                              value=0,
-                              data=tx_data,
-                              gas=0xffffffffffff)
-                
-
+            tx_data = ABI.function_call(str(entries[0].signature), *argv)
+            print("before transaction", str(entries[0].signature))
+            # pdb.set_trace()
+            m.transaction(caller=self.malicious_account,
+                          address=self.contract.address,
+                          value=0,
+                          data=tx_data,
+                          gas=0xffffffffffff)
 
         m.finalize()
                 #[todo] save manticore state to node
@@ -117,6 +120,71 @@ class BMC(object):
                 #[todo] check LTL
 
             #[todo] DFS new node
+
+    def verifyTree(self, node, counter):
+        print("check state", node.state_id)
+        s.push()
+        if node.state:
+            #print(node.state._platform.get_balance(int(self.malicious_account)), node.state._platform.get_balance(int(self.contract_account)))
+            if isinstance(node.state._platform.get_balance(int(self.malicious_account)), manticore.core.smtlib.expression.BitVecAdd):
+                if self.z3_func.get("malicious_account>1000") is not None:
+                    s.add(self.z3_func["malicious_account>1000"](counter) == True)
+            else:
+                if self.z3_func.get("malicious_account>1000") is not None:
+                    s.add(self.z3_func["malicious_account>1000"](counter) == False)
+            if self.z3_func.get("contract_account>100") is not None:
+                s.add(self.z3_func["contract_account>100"](counter) == True)
+            if self.z3_func.get("malicious_account<3000") is not None:
+                s.add(self.z3_func["malicious_account<3000"](counter) == True)
+            print("Local", s.check())
+            
+
+            s.push()
+            if self.z3_func.get("contract_account>100") is not None:
+                s.add(ForAll(infi, Implies(
+                       infi > counter,
+                       self.z3_func["contract_account>100"](infi) == True
+                   )))
+            if self.z3_func.get("malicious_account<3000") is not None:
+                s.add(ForAll(infi, Implies(
+                       infi > counter,
+                       self.z3_func["malicious_account<3000"](infi) == True
+                   )))
+            if isinstance(node.state._platform.get_balance(int(self.malicious_account)), manticore.core.smtlib.expression.BitVecAdd):
+                if self.z3_func.get("malicious_account>1000") is not None:
+                    s.add(ForAll(infi, Implies(
+                            infi > counter,
+                            self.z3_func["malicious_account>1000"](infi) == False
+                        )))
+            print("if end", s.check())
+            #print(s.model())
+            s.pop()
+
+            if counter > MAX_DEPTH or len(node.children) == 0:
+                s.push()
+                if self.z3_func.get("contract_account>100") is not None:
+                    s.add(ForAll(infi, Implies(
+                           infi > counter,
+                           self.z3_func["contract_account>100"](infi) == True
+                       )))
+                if self.z3_func.get("malicious_account<3000") is not None:
+                    s.add(ForAll(infi, Implies(
+                           infi > counter,
+                           self.z3_func["malicious_account<3000"](infi) == True
+                       )))
+                if isinstance(node.state._platform.get_balance(int(self.malicious_account)), manticore.core.smtlib.expression.BitVecAdd):
+                    if self.z3_func.get("malicious_account>1000") is not None:
+                        s.add(ForAll(infi, Implies(
+                                infi > counter,
+                                self.z3_func["malicious_account>1000"](infi) == True
+                            )))
+                print("loop infi", s.check())
+                s.pop()
+
+        for child in node.children:
+            self.verifyTree(child,counter+1)
+
+        s.pop()
 
     def parse_property(self, property):
         self.prop = property
@@ -181,18 +249,26 @@ class BMC(object):
         self.z3_var_counter += 1
         return Int("var" + str(self.z3_var_counter))
 
-sampleProperty = "((-('p71')) || (true U ('p96')))"
+sampleProperty = "((true U (('malicious_account>1000'))) || (-('contract_account>100')))"
 # sampleProperty = "('r' U ('p1' U X ('p2' U ('p3')))) && ((('p1' U (('p2' U 'p4') U ('q' && 'r')))) U 'r')"
+#sampleProperty = "((-('malicious_account>3000')) W (false))"
+s = Solver()
+MAX_DEPTH = 5
+infi = Int("infi")
 
 bmc = BMC()
 bmc.parse_property(sampleProperty)
 m = ManticoreEVM()
 print("*initial_state", m._initial_state)
 bmc.init_manticore(m)
-bmc.create_z3_property(bmc.z3_prop, [])
+z3 = bmc.create_z3_property(bmc.z3_prop, [])
+s.add(z3)
 
-bmc.DFS(bmc.root)
+bmc.expand(bmc.root)
 
 tree = GameTree(m.initial_state, -1)
 tree.make_tree()
 tree.print_game_tree()
+
+bmc.verifyTree(tree.root_node, 0)
+

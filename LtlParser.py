@@ -47,7 +47,7 @@ class LtlParser(Parser):
         )
 
     # Tokens
-    t_UNTIL           = r'U'
+    t_UNTIL           = r'U|W'
     t_NEGATION        = r'-'
     t_NEXT            = r'X'
     t_EXIST           = r'E'
