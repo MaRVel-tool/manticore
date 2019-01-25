@@ -400,7 +400,6 @@ class Executor(Eventful):
 
         # Build and enqueue a state for each solution
         children = []
-
         for new_value in solutions:
             with state as new_state:
                 new_state.constrain(expression == new_value)
@@ -412,26 +411,25 @@ class Executor(Eventful):
                 self._publish('did_fork_state', new_state, expression, new_value, policy)
 
                 # enqueue new_state
+                new_node_id = generate_new_id()
+                new_state._id = new_node_id
                 state_id = self.enqueue(new_state)
                 # maintain a list of children for logging purpose
                 '''
                   Add the child to the tree here (node is paased from the previous function)
                   add function takes state and state id and also add it to the hashMap'''
 
-                new_state.set_id(state_id)
-                new_node_id = generate_new_id()
-                new_state._id = new_node_id
                 new_node = Node(new_state, 
                     new_node_id, 
                     new_state.platform.current_vm.gas)
 
                 current_node.add_child_node(new_node)
                 new_node.set_parent(current_node)
+
                 print("after fork", current_node.state_id, new_node.state_id)
 
                 # child_node = Node(new_state,state_id, new_state.platform.current_vm.gas)
                 # current_node.add_child_node(child_node)
-
                 children.append(state_id)
 
         logger.info("Forking current state into states %r", children)
@@ -464,6 +462,7 @@ class Executor(Eventful):
                                 try:
                                     # Select a single state_id
                                     current_state_id = self.get()
+
                                     # load selected state from secondary storage
                                     if current_state_id is not None:
                                         self._publish('will_load_state', current_state_id)
@@ -480,15 +479,17 @@ class Executor(Eventful):
                                             new_node = Node(current_state, 
                                                 new_node_id, 
                                                 current_state.platform.current_vm.gas)
+
                                             current_node.add_child_node(new_node)
                                             new_node.set_parent(current_node)
-                                            print("after execute", current_node.state_id,new_node.state_id)
+                                            print("after execute : id", current_node.state_id, " ; ._id" ,new_node.state_id)
 
                                         else:
                                             current_node = Node(current_state, 
                                                 current_state._id, 
                                                 current_state.platform.current_vm.gas)
                                             new_node = current_node
+
 
                                     # notify siblings we have a state to play with
                                 finally:
@@ -521,9 +522,8 @@ class Executor(Eventful):
                         # setstate()
 
                         ## Get the node by id from hashmap of game tree , pass it to the fork function
-                        if current_node is None:
-                            current_node = Node(current_state,current_state_id,current_state.platform.current_vm.gas)
-
+                        if new_node is None:
+                            new_node = Node(current_state,current_state._id,current_state.platform.current_vm.gas)
 
                         logger.debug("Generic state fork on condition")
                         current_state = self.fork(new_node, current_state, e.expression, e.policy, e.setstate)
