@@ -1008,7 +1008,6 @@ class ManticoreEVM(Manticore):
 
         # run over potentially several states and
         # generating potentially several others
-
         self.run(procs=self._config_procs)
 
         return address
@@ -1089,6 +1088,7 @@ class ManticoreEVM(Manticore):
         # pdb.set_trace()
         # A callback will use _pending_transaction and issue the transaction
         # in each state (see load_state_callback)
+        pdb.set_trace()
         super().run(**kwargs)
 
         with self.locked_context('ethereum') as context:

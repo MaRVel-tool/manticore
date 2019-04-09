@@ -1,5 +1,4 @@
 from manticore.ethereum import ManticoreEVM
-from GameTree import GameTree
 from manticore.exceptions import EthereumError
 from manticore.ethereum.abi import ABI
 from manticore.core.smtlib.constraints import ConstraintSet
@@ -70,26 +69,14 @@ class BMC(object):
 
     # Execute from the node
     def expand(self, g_node):
-
-        #[todo] check LTL
-
         if g_node.depth > 10:
             print("depth limitation")
-            #[todo] check LTL with tail loop
             return True
 
         # try all function calls
         for fun_name, entries in self.get_contract_functions().items():
-            #setup initial state in the vm
-            # m._initial_state = g_node.state
-            # if '_pending_transaction' in m._initial_state.context:
-            #     m._initial_state.context.pop("_pending_transaction")
-            # m._initial_state._constraints = ConstraintSet()
-            # m._initial_state.platform.constraints = m._initial_state.constraints
-            # [todo] maybe reset pc
-
             with m.locked_context('ethereum') as context:
-                print(m._executor.list(), m._all_state_ids, m._running_state_ids)
+                print("states:",m._executor.list(), m._all_state_ids, m._running_state_ids)
             if len(entries) > 1:
                 sig = entries[0].signature[len(name):]
                 raise EthereumError(
@@ -105,21 +92,15 @@ class BMC(object):
 
             tx_data = ABI.function_call(str(entries[0].signature), *argv)
             print("before transaction", str(entries[0].signature))
-            # pdb.set_trace()
+            pdb.set_trace()
             m.transaction(caller=self.malicious_account,
                           address=self.contract.address,
                           value=0,
                           data=tx_data,
                           gas=0xffffffffffff)
 
-        m.finalize()
-                #[todo] save manticore state to node
+        # m.finalize()
 
-                #[todo] finalize the node
-
-                #[todo] check LTL
-
-            #[todo] DFS new node
 
     def verifyTree(self, node, counter):
         print("check state", node.state_id)
@@ -259,11 +240,11 @@ infi = Int("infi")
 bmc = BMC()
 bmc.parse_property(sampleProperty)
 m = ManticoreEVM()
-print("*initial_state", m._initial_state)
 bmc.init_manticore(m)
 z3 = bmc.create_z3_property(bmc.z3_prop, [])
 s.add(z3)
 
+print("start expand")
 bmc.expand(bmc.root)
 
 tree = GameTree(m.initial_state, -1)

@@ -30,6 +30,7 @@ from .utils.event import Eventful
 from .core.plugin import Plugin, InstructionCounter, RecordSymbolicBranches, Visited, Tracer
 import logging
 from .utils import log
+import pdb
 
 logger = logging.getLogger(__name__)
 log.init_logging()
@@ -408,6 +409,7 @@ class Manticore(Eventful):
 
         num_processes = 1
         if num_processes == 1:
+            pdb.set_trace()
             target()
         else:
             for _ in range(num_processes):
