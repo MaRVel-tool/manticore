@@ -75,6 +75,15 @@ class BMC(object):
 
         # try all function calls
         for fun_name, entries in self.get_contract_functions().items():
+
+            #setup initial state in the vm
+            m._initial_state = g_node.state
+            if '_pending_transaction' in m._initial_state.context:
+                m._initial_state.context.pop("_pending_transaction")
+            m._initial_state._constraints = ConstraintSet()
+            m._initial_state.platform.constraints = m._initial_state.constraints
+            # [todo] maybe reset pc
+
             with m.locked_context('ethereum') as context:
                 print("states:",m._executor.list(), m._all_state_ids, m._running_state_ids)
             if len(entries) > 1:
